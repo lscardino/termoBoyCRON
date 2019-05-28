@@ -8,6 +8,7 @@ package com.nicolau.termoboy.javacronpasardatossql;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -59,7 +60,8 @@ public class CRONPasarDatosSQL {
 
     public static void main(String[] args) throws FileNotFoundException, IOException, SQLException, InterruptedException, ParseException {
         FileInputStream serviceAccount = new FileInputStream("termomovidas-firebase-adminsdk-qgjn6-378a7de574.json");
-
+        System.out.println(serviceAccount.read());
+        serviceAccount = new FileInputStream("termomovidas-firebase-adminsdk-qgjn6-378a7de574.json");
         FirebaseOptions options = new FirebaseOptions.Builder()
                 .setCredentials(GoogleCredentials.fromStream(serviceAccount))
                 .setDatabaseUrl("https://termomovidas.firebaseio.com/")
@@ -83,49 +85,66 @@ public class CRONPasarDatosSQL {
                 int cantidadDatos = (int) ds.getChildrenCount();
 
                 if (cantidadDatos > 1) {
-                    query = ref.orderByKey().limitToLast(1);
+                    query = ref.orderByKey().limitToFirst(cantidadDatos - 1);
                 } else {
                     System.out.println("ERROR: No hay datos que concuerden con la busqueda especificada.");
                 }
+                System.out.println("Query Ultimo dia " + query.toString());
                 query.addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot ds) {
                         for (DataSnapshot entrada : ds.getChildren()) {
                             try {
                                 diaEntrada = entrada.getKey();
+                                System.out.println("Día subir " + diaEntrada);
                                 fechaRepetida(diaEntrada);
-                                for (DataSnapshot datos : entrada.getChildren()) {
-                                    if (!datos.getKey().equals("Transporte")) {
+                                entrada.child("Hora").getRef().addValueEventListener(new ValueEventListener() {
+                                    @Override
+                                    public void onDataChange(DataSnapshot ds) {
+                                        for (DataSnapshot datos : entrada.getChildren()) {
 
-                                        String horaEntrada = datos.getKey();
-                                        if (!horaRepetida(diaEntrada, horaEntrada)) {
-
+                                            String horaEntrada = datos.getKey();
+                                            System.out.println("Hora Entrada " + horaEntrada);
                                             try {
+                                                if (!horaRepetida(diaEntrada, horaEntrada)) {
 
-                                                String humedadEntrada = datos.child("Humedad").getValue().toString();
-                                                String temperaturaEntrada = datos.child("Temperatura").getValue().toString();
-                                                String lluviaEntrada = datos.child("Lluvia").getValue().toString();
-                                                String polvoEntrada = datos.child("Polvo").getValue().toString();
-                                                String presionEntrada = datos.child("Presión").getValue().toString();
-                                                String velVientoEntrada = datos.child("Velocidad viento").getValue().toString();
-                                                String sensacionTEntrada = datos.child("Sensacion").getValue().toString();
+                                                    try {
+                                                        String humedadEntrada = datos.child("Humedad").getValue().toString();
+                                                        String temperaturaEntrada = datos.child("Temperatura").getValue().toString();
+                                                        String lluviaEntrada = datos.child("Lluvia").getValue().toString();
+                                                        String polvoEntrada = datos.child("Polvo").getValue().toString();
+                                                        String presionEntrada = datos.child("Presión").getValue().toString();
+                                                        String velVientoEntrada = datos.child("Velocidad viento").getValue().toString();
+                                                        String sensacionTEntrada = datos.child("Sensacion").getValue().toString();
 
-                                                guardarSQL(diaEntrada, horaEntrada, humedadEntrada, temperaturaEntrada, presionEntrada, lluviaEntrada,
-                                                        velVientoEntrada, polvoEntrada, sensacionTEntrada);
+                                                        guardarSQL(diaEntrada, horaEntrada, humedadEntrada, temperaturaEntrada, presionEntrada, lluviaEntrada,
+                                                                velVientoEntrada, polvoEntrada, sensacionTEntrada);
 
-                                            } catch (ParseException | SQLException ex) {
+                                                    } catch (ParseException | SQLException ex) {
+                                                        Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
+                                                    }
+                                                }
+                                            } catch (SQLException ex) {
                                                 Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
                                             }
+
                                         }
+                                        latch.countDown();
 
                                     }
-                                }
-                                latch.countDown();
+
+                                    @Override
+                                    public void onCancelled(DatabaseError de) {
+                                        latch.countDown();
+                                    }
+                                });
 
                             } catch (ParseException | SQLException ex) {
                                 Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
                             }
                         }
+
+                        latch.countDown();
                     }
 
                     @Override
@@ -148,22 +167,23 @@ public class CRONPasarDatosSQL {
     public static void leerTransportes() throws InterruptedException {
         latch = new CountDownLatch(1);
         listaTotal = new HashMap<>();
+                System.out.println("Transporte " + refTransportes.getKey());
         refTransportes.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot ds) {
                 totalEntradas = ds.getChildrenCount();
+                System.out.println("Transporte " + ds.getKey() + " " + totalEntradas);
                 try {
                     if (!transportesExisten(diaEntrada)) {
-                        
+
                         for (DataSnapshot entrada : ds.getChildren()) {
-                            String usuario = entrada.getKey();
-                            String transporte = entrada.getValue(String.class);
+                            String transporte = entrada.getKey();
+                            String  usuario = entrada.getValue(String.class);
+                            System.out.println(transporte + "  " + usuario);
                             listaTotal.put(usuario, transporte);
-                            
-                            transformarParaSQL();
-                            
                         }
-                    }else{
+                        transformarParaSQL();
+                    } else {
                         System.out.println("Datos ya existentes, no se escribiran"
                                 + " datos en la BDD");
                     }
@@ -202,9 +222,9 @@ public class CRONPasarDatosSQL {
             }
         }
     }
-    
-        public static boolean transportesExisten(String fecha) throws ParseException, SQLException {
-            boolean repe= false;
+
+    public static boolean transportesExisten(String fecha) throws ParseException, SQLException {
+        boolean repe = false;
         String queryFecha = "select count(*) from Transporte t where t.dia=(?)";
         PreparedStatement sentenciaP = conn.prepareStatement(queryFecha);
         sentenciaP.setObject(1, fecha);
