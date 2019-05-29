@@ -37,10 +37,9 @@ import java.util.logging.Logger;
  * @author Lorenzo
  */
 public class CRONPasarDatosSQL {
-
+    final int CANTIDAD_LINEA ;
     private FirebaseDatabase database;
     private DatabaseReference ref;
-    private DatabaseReference refTransportes;
     private CountDownLatch latch;
     private Connection conn;
     private Query query;
@@ -58,7 +57,9 @@ public class CRONPasarDatosSQL {
 
     private SimpleDateFormat parser;
 
-    public CRONPasarDatosSQL() throws FileNotFoundException, IOException, SQLException, InterruptedException, ParseException {
+    public CRONPasarDatosSQL(int cantidadLinea) throws FileNotFoundException, IOException, SQLException, InterruptedException, ParseException {
+        CANTIDAD_LINEA = cantidadLinea;
+        
         InputStream serviceAccount = getClass().getResourceAsStream("/termomovidas-firebase-adminsdk-qgjn6-378a7de574.json");
         System.out.println(serviceAccount.read());
         serviceAccount = getClass().getResourceAsStream("/termomovidas-firebase-adminsdk-qgjn6-378a7de574.json");
@@ -69,10 +70,11 @@ public class CRONPasarDatosSQL {
 
         FirebaseApp.initializeApp(options);
         inicilizaVariables();
+        System.out.println("INFO Actualizará las últimas fechas menos " + CANTIDAD_LINEA);
         leerBDD();
-        refTransportes = database.getReference("Dia/" + diaEntrada + "/Transporte");
-        //leerTransportes();
-        //latch.await();
+        
+        System.out.println("   BORRAR DATOS");
+        CRONBorrarUltimaSemana borrarUltimaSemana = new CRONBorrarUltimaSemana(CANTIDAD_LINEA);
         System.out.println("Calse ejecutada con Exito.");
     }
 
@@ -88,8 +90,8 @@ public class CRONPasarDatosSQL {
             public void onDataChange(DataSnapshot ds) {
                 final int cantidadDatos = (int) ds.getChildrenCount();
 
-                if (cantidadDatos > 1) {
-                    query = ref.orderByKey().limitToFirst(cantidadDatos - 1);
+                if (cantidadDatos > CANTIDAD_LINEA) {
+                    query = ref.orderByKey().limitToFirst(cantidadDatos - CANTIDAD_LINEA);
                 } else {
                     System.out.println("ERROR: No hay datos que concuerden con la busqueda especificada.");
                 }
@@ -151,81 +153,6 @@ public class CRONPasarDatosSQL {
                                     System.out.println("Datos ya existentes, no se escribiran"
                                             + " datos en la BDD");
                                 }
-                                /*
-                                entrada.child("Hora").getRef().addValueEventListener(new ValueEventListener() {
-                                    @Override
-                                    public void onDataChange(DataSnapshot ds) {
-                                        System.out.print("Hora Entrada -> ");
-                                        for (DataSnapshot datos : entrada.getChildren()) {
-
-                                            String horaEntrada = datos.getKey();
-                                            System.out.print(horaEntrada + "| ");
-                                            try {
-                                                if (!horaRepetida(diaEntrada, horaEntrada)) {
-
-                                                    try {
-                                                        String humedadEntrada = datos.child("Humedad").getValue().toString();
-                                                        String temperaturaEntrada = datos.child("Temperatura").getValue().toString();
-                                                        String lluviaEntrada = datos.child("Lluvia").getValue().toString();
-                                                        String polvoEntrada = datos.child("Polvo").getValue().toString();
-                                                        String presionEntrada = datos.child("Presión").getValue().toString();
-                                                        String velVientoEntrada = datos.child("Velocidad viento").getValue().toString();
-                                                        String sensacionTEntrada = datos.child("Sensacion").getValue().toString();
-
-                                                        guardarSQL(diaEntrada, horaEntrada, humedadEntrada, temperaturaEntrada, presionEntrada, lluviaEntrada,
-                                                                velVientoEntrada, polvoEntrada, sensacionTEntrada);
-
-                                                    } catch (ParseException | SQLException ex) {
-                                                        Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
-                                                    }
-                                                }
-                                            } catch (SQLException ex) {
-                                                Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
-                                            }
-
-                                        }
-                                        System.out.println("");
-                                    }
-
-                                    @Override
-                                    public void onCancelled(DatabaseError de) {
-                                    }
-                                });
-
-                                entrada.child("Transporte").getRef().addListenerForSingleValueEvent(new ValueEventListener() {
-                                    @Override
-                                    public void onDataChange(DataSnapshot ds) {
-                                        totalEntradas = ds.getChildrenCount();
-                                        System.out.print("Transporte " + totalEntradas + " -> ");
-                                        try {
-                                            if (!transportesExisten(diaEntrada) || 0 == 0) {
-
-                                                for (DataSnapshot entrada : ds.getChildren()) {
-                                                    String transporte = entrada.getKey();
-                                                    String usuario = "";
-                                                    System.out.print(transporte + "," + usuario + "| ");
-                                                    listaTotal.put(usuario, transporte);
-                                                }
-                                                System.out.println("");
-                                                transformarParaSQL();
-                                            } else {
-                                                System.out.println("Datos ya existentes, no se escribiran"
-                                                        + " datos en la BDD");
-                                            }
-                                        } catch (ParseException ex) {
-                                            Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
-                                        } catch (SQLException ex) {
-                                            Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
-                                        }
-
-                                    }
-
-                                    @Override
-                                    public void onCancelled(DatabaseError de) {
-                                        System.out.println("Lectura de datos cancelada");
-                                    }
-                                });
-                                 */
                             } catch (ParseException | SQLException ex) {
                                 Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
                             }
@@ -249,46 +176,6 @@ public class CRONPasarDatosSQL {
             }
         });
         latch.await();
-    }
-
-    private void leerTransportes() throws InterruptedException {
-        latch = new CountDownLatch(1);
-        listaTotal = new HashMap<>();
-        System.out.print("Transporte " + refTransportes.getKey());
-        refTransportes.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot ds) {
-                totalEntradas = ds.getChildrenCount();
-                System.out.println(" " + totalEntradas);
-                try {
-                    if (!transportesExisten(diaEntrada)) {
-
-                        for (DataSnapshot entrada : ds.getChildren()) {
-                            String transporte = entrada.getKey();
-                            String usuario = entrada.getValue(String.class);
-                            System.out.println(transporte + "  " + usuario);
-                            listaTotal.put(usuario, transporte);
-                        }
-                        transformarParaSQL();
-                    } else {
-                        System.out.println("Datos ya existentes, no se escribiran"
-                                + " datos en la BDD");
-                    }
-                } catch (ParseException ex) {
-                    Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (SQLException ex) {
-                    Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
-                }
-
-                latch.countDown();
-            }
-
-            @Override
-            public void onCancelled(DatabaseError de) {
-                System.out.println("Lectura de datos cancelada");
-                latch.countDown();
-            }
-        });
     }
 
     /**
