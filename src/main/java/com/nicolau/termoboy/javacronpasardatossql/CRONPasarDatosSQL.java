@@ -5,10 +5,10 @@
  */
 package com.nicolau.termoboy.javacronpasardatossql;
 
+import com.nicolau.termoboy.javacronpasardatossql.modelo.Connexion;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
-import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -16,9 +16,9 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -38,30 +38,30 @@ import java.util.logging.Logger;
  */
 public class CRONPasarDatosSQL {
 
-    static FirebaseDatabase database;
-    static DatabaseReference ref;
-    static DatabaseReference refTransportes;
-    static CountDownLatch latch;
-    static Connection conn;
-    static Query query;
+    private FirebaseDatabase database;
+    private DatabaseReference ref;
+    private DatabaseReference refTransportes;
+    private CountDownLatch latch;
+    private Connection conn;
+    private Query query;
 
     //TRANSPORTES
-    static long totalEntradas;
-    static int bici;
-    static int coche;
-    static int tPublico;
-    static int apie;
-    static int otros;
+    private long totalEntradas;
+    private int bici;
+    private int coche;
+    private int tPublico;
+    private int apie;
+    private int otros;
 
-    static String diaEntrada;
-    static HashMap<String, String> listaTotal;
+    private String diaEntrada;
+    private HashMap<String, String> listaTotal;
 
-    static SimpleDateFormat parser;
+    private SimpleDateFormat parser;
 
-    public static void main(String[] args) throws FileNotFoundException, IOException, SQLException, InterruptedException, ParseException {
-        FileInputStream serviceAccount = new FileInputStream("termomovidas-firebase-adminsdk-qgjn6-378a7de574.json");
+    public CRONPasarDatosSQL() throws FileNotFoundException, IOException, SQLException, InterruptedException, ParseException {
+        InputStream serviceAccount = getClass().getResourceAsStream("/termomovidas-firebase-adminsdk-qgjn6-378a7de574.json");
         System.out.println(serviceAccount.read());
-        serviceAccount = new FileInputStream("termomovidas-firebase-adminsdk-qgjn6-378a7de574.json");
+        serviceAccount = getClass().getResourceAsStream("/termomovidas-firebase-adminsdk-qgjn6-378a7de574.json");
         FirebaseOptions options = new FirebaseOptions.Builder()
                 .setCredentials(GoogleCredentials.fromStream(serviceAccount))
                 .setDatabaseUrl("https://termomovidas.firebaseio.com/")
@@ -76,7 +76,11 @@ public class CRONPasarDatosSQL {
         System.out.println("Calse ejecutada con Exito.");
     }
 
-    public static void leerBDD() throws InterruptedException {
+    /**
+     * @see Método que lee de Firebase y escribe en SQL
+     * @throws InterruptedException
+     */
+    private void leerBDD() throws InterruptedException {
         latch = new CountDownLatch(1);
 
         ref.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -247,7 +251,7 @@ public class CRONPasarDatosSQL {
         latch.await();
     }
 
-    public static void leerTransportes() throws InterruptedException {
+    private void leerTransportes() throws InterruptedException {
         latch = new CountDownLatch(1);
         listaTotal = new HashMap<>();
         System.out.print("Transporte " + refTransportes.getKey());
@@ -287,7 +291,14 @@ public class CRONPasarDatosSQL {
         });
     }
 
-    public static void fechaRepetida(String fecha) throws ParseException, SQLException {
+    /**
+     * @see Método que mira en SQL si el dato pasado existe o no.
+     * @param fecha Dato a verificar si existe no hace nada, pero si no existe
+     * la crea en la base de datos
+     * @throws ParseException Error al pasar los datos de String a int
+     * @throws SQLException Error de la base de datos SQL
+     */
+    private void fechaRepetida(String fecha) throws ParseException, SQLException {
         String queryFecha = "select count(*) from Dia d where d.dia=(?)";
         PreparedStatement sentenciaP = conn.prepareStatement(queryFecha);
         sentenciaP.setObject(1, fecha);
@@ -306,7 +317,15 @@ public class CRONPasarDatosSQL {
         }
     }
 
-    public static boolean transportesExisten(String fecha) throws ParseException, SQLException {
+    /**
+     * @see Método para mirar si el dato paso existe en la base de datos, a
+     * referencia a la tabla transporte
+     * @param fecha Datos pasado para realitzar la consulta
+     * @return Devuelve un booleano de si existe o no.
+     * @throws ParseException
+     * @throws SQLException
+     */
+    private boolean transportesExisten(String fecha) throws ParseException, SQLException {
         boolean repe = false;
         String queryFecha = "select count(*) from Transporte t where t.dia=(?)";
         PreparedStatement sentenciaP = conn.prepareStatement(queryFecha);
@@ -324,7 +343,16 @@ public class CRONPasarDatosSQL {
         return repe;
     }
 
-    public static boolean horaRepetida(String dia, String hora) throws SQLException {
+    /**
+     * @see Método para verificar si exite los datos pasado en la base de datos
+     * SQL
+     * @param dia Dato referencia al dia que está en la columna Dia de datos
+     * @param hora Dato referenciado a la hora que está en al columna hora de
+     * Datos
+     * @return Devuelve un boolean de su exitencia
+     * @throws SQLException
+     */
+    private boolean horaRepetida(String dia, String hora) throws SQLException {
         boolean repetido = false;
 
         String queryFecha = "select count(*) from Datos d where d.dia=(?) and d.hora =(?)";
@@ -346,7 +374,21 @@ public class CRONPasarDatosSQL {
         return repetido;
     }
 
-    public static void guardarSQL(String dia, String hora, String humedad,
+    /**
+     * @see Método que realitza el almacenaje de los datos en SQL
+     * @param dia
+     * @param hora
+     * @param humedad
+     * @param temperatura
+     * @param presion
+     * @param mmlluvia
+     * @param kmhViento
+     * @param nivelPolvo
+     * @param sensacionT
+     * @throws SQLException
+     * @throws ParseException
+     */
+    private void guardarSQL(String dia, String hora, String humedad,
             String temperatura, String presion, String mmlluvia,
             String kmhViento, String nivelPolvo, String sensacionT
     ) throws SQLException, ParseException {
@@ -369,7 +411,11 @@ public class CRONPasarDatosSQL {
         //System.out.println("Escrito Todo guay");
     }
 
-    public static void transformarParaSQL() throws SQLException {
+    /**
+     * @see Método que cuenta los datos sacados de Firebase
+     * @throws SQLException
+     */
+    private void transformarParaSQL() throws SQLException {
         for (Map.Entry pair : listaTotal.entrySet()) {
             switch ((String) pair.getValue()) {
                 case "Coche":
@@ -392,7 +438,7 @@ public class CRONPasarDatosSQL {
         enviarSQLT();
     }
 
-    public static void enviarSQLT() throws SQLException {
+    private void enviarSQLT() throws SQLException {
         String query = "insert into transporte"
                 + " values (?,?,?,?,?,?)";
         PreparedStatement sentenciaP = conn.prepareStatement(query);
@@ -416,7 +462,7 @@ public class CRONPasarDatosSQL {
          */
     }
 
-    public static void inicilizaVariables() throws SQLException {
+    private void inicilizaVariables() throws SQLException {
         database = FirebaseDatabase.getInstance();
         ref = database.getReference("Dia");
 

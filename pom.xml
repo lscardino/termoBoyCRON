@@ -24,7 +24,7 @@
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>libs</classpathPrefix>
                             <mainClass>
-                                com.nicolau.termoboy.javacronpasardatossql.CRONPasarDatosSQL
+                                com.nicolau.termoboy.javacronpasardatossql.Controlador
                             </mainClass>
                         </manifest>
                     </archive> 

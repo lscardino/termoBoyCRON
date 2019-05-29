@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.nicolau.termoboy.javacronpasardatossql;
+package com.nicolau.termoboy.javacronpasardatossql.modelo;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -20,6 +20,7 @@ import java.util.logging.Logger;
  * @author Lorenzo
  */
 public class Connexion {
+
     private static final String DRIVER_CLASS_NAME;
     private static final String DRIVER_URL;
     private static final String USER;
