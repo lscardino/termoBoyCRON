@@ -70,41 +70,92 @@ public class CRONPasarDatosSQL {
         FirebaseApp.initializeApp(options);
         inicilizaVariables();
         leerBDD();
-        latch.await();
         refTransportes = database.getReference("Dia/" + diaEntrada + "/Transporte");
-        leerTransportes();
-        latch.await();
+        //leerTransportes();
+        //latch.await();
         System.out.println("Calse ejecutada con Exito.");
     }
 
     public static void leerBDD() throws InterruptedException {
         latch = new CountDownLatch(1);
+
         ref.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot ds) {
-                int cantidadDatos = (int) ds.getChildrenCount();
+                final int cantidadDatos = (int) ds.getChildrenCount();
 
                 if (cantidadDatos > 1) {
                     query = ref.orderByKey().limitToFirst(cantidadDatos - 1);
                 } else {
                     System.out.println("ERROR: No hay datos que concuerden con la busqueda especificada.");
                 }
-                System.out.println("Query Ultimo dia " + query.toString());
+                System.out.println("INFO Query de los ultimos dias " + query.toString());
                 query.addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot ds) {
                         for (DataSnapshot entrada : ds.getChildren()) {
                             try {
                                 diaEntrada = entrada.getKey();
-                                System.out.println("Día subir " + diaEntrada);
+                                System.out.println("INFO Día subir " + diaEntrada);
+                                //CreaFecha
                                 fechaRepetida(diaEntrada);
+
+                                System.out.print("INFO Hora EntradaS -> ");
+                                for (DataSnapshot horas : entrada.child("Hora").getChildren()) {
+                                    String horaEntrada = horas.getKey();
+                                    try {
+                                        if (!horaRepetida(diaEntrada, horaEntrada)) {
+                                            System.out.print(horaEntrada + "| ");
+                                            try {
+                                                String humedadEntrada = horas.child("Humedad").getValue().toString();
+                                                String temperaturaEntrada = horas.child("Temperatura").getValue().toString();
+                                                String lluviaEntrada = horas.child("Lluvia").getValue().toString();
+                                                String polvoEntrada = horas.child("Polvo").getValue().toString();
+                                                String presionEntrada = horas.child("Presión").getValue().toString();
+                                                String velVientoEntrada = horas.child("Velocidad viento").getValue().toString();
+                                                String sensacionTEntrada = horas.child("Sensacion").getValue().toString();
+
+                                                guardarSQL(diaEntrada, horaEntrada, humedadEntrada, temperaturaEntrada, presionEntrada, lluviaEntrada,
+                                                        velVientoEntrada, polvoEntrada, sensacionTEntrada);
+
+                                            } catch (ParseException | SQLException ex) {
+                                                Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
+                                            }
+                                        }
+                                    } catch (SQLException ex) {
+                                        Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
+                                    }
+
+                                }
+
+                                listaTotal = new HashMap<>();
+                                if (!transportesExisten(diaEntrada)) {
+                                    totalEntradas = entrada.child("Transporte").getChildrenCount();
+                                    System.out.print("INFO Transporte " + totalEntradas + " -> ");
+                                    for (DataSnapshot transportes : entrada.child("Transporte").getChildren()) {
+                                        String transporte = transportes.getKey();
+                                        DataSnapshot infoUser = transportes.getChildren().iterator().next();
+                                        String usuario = infoUser.getKey();
+                                        System.out.print(transporte + "," + usuario + "| ");
+                                        listaTotal.put(usuario, transporte);
+                                    }
+                                    System.out.println("");
+                                    //Sube los datos al SQL transformado
+                                    transformarParaSQL();
+
+                                } else {
+                                    System.out.println("Datos ya existentes, no se escribiran"
+                                            + " datos en la BDD");
+                                }
+                                /*
                                 entrada.child("Hora").getRef().addValueEventListener(new ValueEventListener() {
                                     @Override
                                     public void onDataChange(DataSnapshot ds) {
+                                        System.out.print("Hora Entrada -> ");
                                         for (DataSnapshot datos : entrada.getChildren()) {
 
                                             String horaEntrada = datos.getKey();
-                                            System.out.println("Hora Entrada " + horaEntrada);
+                                            System.out.print(horaEntrada + "| ");
                                             try {
                                                 if (!horaRepetida(diaEntrada, horaEntrada)) {
 
@@ -129,21 +180,53 @@ public class CRONPasarDatosSQL {
                                             }
 
                                         }
-                                        latch.countDown();
+                                        System.out.println("");
+                                    }
+
+                                    @Override
+                                    public void onCancelled(DatabaseError de) {
+                                    }
+                                });
+
+                                entrada.child("Transporte").getRef().addListenerForSingleValueEvent(new ValueEventListener() {
+                                    @Override
+                                    public void onDataChange(DataSnapshot ds) {
+                                        totalEntradas = ds.getChildrenCount();
+                                        System.out.print("Transporte " + totalEntradas + " -> ");
+                                        try {
+                                            if (!transportesExisten(diaEntrada) || 0 == 0) {
+
+                                                for (DataSnapshot entrada : ds.getChildren()) {
+                                                    String transporte = entrada.getKey();
+                                                    String usuario = "";
+                                                    System.out.print(transporte + "," + usuario + "| ");
+                                                    listaTotal.put(usuario, transporte);
+                                                }
+                                                System.out.println("");
+                                                transformarParaSQL();
+                                            } else {
+                                                System.out.println("Datos ya existentes, no se escribiran"
+                                                        + " datos en la BDD");
+                                            }
+                                        } catch (ParseException ex) {
+                                            Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
+                                        } catch (SQLException ex) {
+                                            Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
+                                        }
 
                                     }
 
                                     @Override
                                     public void onCancelled(DatabaseError de) {
-                                        latch.countDown();
+                                        System.out.println("Lectura de datos cancelada");
                                     }
                                 });
-
+                                 */
                             } catch (ParseException | SQLException ex) {
                                 Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
                             }
                         }
-
+                        System.out.println("INFO Terminado");
                         latch.countDown();
                     }
 
@@ -153,12 +236,12 @@ public class CRONPasarDatosSQL {
                         latch.countDown();
                     }
                 });
+
             }
 
             @Override
             public void onCancelled(DatabaseError de) {
                 System.out.println("ERROR: No hay datos que concuerden con la busqueda especificada.");
-                latch.countDown();
             }
         });
         latch.await();
@@ -167,18 +250,18 @@ public class CRONPasarDatosSQL {
     public static void leerTransportes() throws InterruptedException {
         latch = new CountDownLatch(1);
         listaTotal = new HashMap<>();
-                System.out.println("Transporte " + refTransportes.getKey());
+        System.out.print("Transporte " + refTransportes.getKey());
         refTransportes.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot ds) {
                 totalEntradas = ds.getChildrenCount();
-                System.out.println("Transporte " + ds.getKey() + " " + totalEntradas);
+                System.out.println(" " + totalEntradas);
                 try {
                     if (!transportesExisten(diaEntrada)) {
 
                         for (DataSnapshot entrada : ds.getChildren()) {
                             String transporte = entrada.getKey();
-                            String  usuario = entrada.getValue(String.class);
+                            String usuario = entrada.getValue(String.class);
                             System.out.println(transporte + "  " + usuario);
                             listaTotal.put(usuario, transporte);
                         }
