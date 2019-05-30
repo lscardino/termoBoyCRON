@@ -49,16 +49,18 @@ public class CRONBorrarUltimaSemana {
 
         FirebaseApp.initializeApp(options);*/
 
-        
         System.out.println("INFO Borrará las últimas fechas menos " + CANTIDAD_LINEA);
         listaDias = new ArrayList();
         database = FirebaseDatabase.getInstance();
         ref = database.getReference("Dia");
+
+        latch = new CountDownLatch(2);
+        obtenerBorrarUsuarios();
         obtenerBorrarDatos();
+        latch.await();
     }
 
     private void obtenerBorrarDatos() throws InterruptedException {
-        latch = new CountDownLatch(1);
 
         ref.addListenerForSingleValueEvent(new ValueEventListener() {
             private Query query;
@@ -72,24 +74,26 @@ public class CRONBorrarUltimaSemana {
                 } else {
                     System.out.println("ERROR: No hay datos que concuerden con la busqueda especificada.");
                 }
-                System.out.println("INFO Query de los ultimos dias " + query.toString());
                 query.addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot ds) {
-                        System.out.print("INFO Día Borrar ");
+                        System.out.print("    INFO Día Borrar ");
                         for (DataSnapshot entrada : ds.getChildren()) {
                             String diaEntrada = entrada.getKey();
                             System.out.print(diaEntrada + " | ");
-                            entrada.getRef().removeValue(new DatabaseReference.CompletionListener() {
-                                @Override
-                                public void onComplete(DatabaseError de, DatabaseReference dr) {
-                                }
-                            });
-                             
+                            removeQuery(entrada);
                         }
                         System.out.println("");
 
                         latch.countDown();
+                    }
+
+                    private void removeQuery(DataSnapshot _entrada) {
+                        _entrada.getRef().removeValue(new DatabaseReference.CompletionListener() {
+                            @Override
+                            public void onComplete(DatabaseError de, DatabaseReference dr) {
+                            }
+                        });
                     }
 
                     @Override
@@ -105,7 +109,48 @@ public class CRONBorrarUltimaSemana {
             public void onCancelled(DatabaseError de) {
             }
         });
+    }
 
-        latch.await();
+    private void obtenerBorrarUsuarios() {
+
+        database.getReference("Usuario").addListenerForSingleValueEvent(new ValueEventListener() {
+            final long LIMIT_USER = 100;
+
+            @Override
+            public void onDataChange(DataSnapshot ds) {
+                long countUsuarios = ds.getChildrenCount();
+                int overflowUser = (int) (countUsuarios - LIMIT_USER);
+                Query cienUsuarios = ds.getRef().limitToFirst((overflowUser > 0) ? overflowUser : 0);
+
+                cienUsuarios.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot ds) {
+                        System.out.println("INFO - Limite de usuario superado");
+                        System.out.println("    ACCION - Subirá los datos("+LIMIT_USER+")");
+                        for (DataSnapshot overUser : ds.getChildren()) {
+                            removeQuery(overUser);
+                        }
+                        latch.countDown();
+                    }
+
+                    private void removeQuery(DataSnapshot _overUser) {
+                        _overUser.getRef().removeValue(new DatabaseReference.CompletionListener() {
+                            @Override
+                            public void onComplete(DatabaseError de, DatabaseReference dr) {
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onCancelled(DatabaseError de) {
+                        latch.countDown();
+                    }
+                });
+            }
+
+            @Override
+            public void onCancelled(DatabaseError de) {
+            }
+        });
     }
 }
