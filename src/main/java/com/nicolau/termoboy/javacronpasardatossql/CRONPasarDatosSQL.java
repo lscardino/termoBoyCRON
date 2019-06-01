@@ -148,9 +148,9 @@ public class CRONPasarDatosSQL {
                                     String presionEntrada = horas.child("Presión").getValue().toString();
                                     String velVientoEntrada = horas.child("Velocidad viento").getValue().toString();
                                     String sensacionTEntrada = horas.child("Sensacion").getValue().toString();
-
+                                    String lumensEntrada = horas.child("Lumens").getValue().toString();
                                     guardarSQL_Hora(diaEntrada, horaEntrada, humedadEntrada, temperaturaEntrada, presionEntrada, lluviaEntrada,
-                                            velVientoEntrada, polvoEntrada, sensacionTEntrada);
+                                            velVientoEntrada, polvoEntrada, sensacionTEntrada, lumensEntrada);
                                 }
                             }
                             System.out.println("");
@@ -332,12 +332,12 @@ public class CRONPasarDatosSQL {
      */
     private void guardarSQL_Hora(String dia, String hora, String humedad,
             String temperatura, String presion, String mmlluvia,
-            String kmhViento, String nivelPolvo, String sensacionT
+            String kmhViento, String nivelPolvo, String sensacionT, String lumens
     ) {
         try {
             //System.out.println("\n\nFecha que vamos a insertar " + dia + " Hora que vamso a insertar: " + hora);
 
-            String insertarlosDatos = "INSERT INTO Datos VALUES (?,?,?,?,?,?,?,?,?)";
+            String insertarlosDatos = "INSERT INTO Datos VALUES (?,?,?,?,?,?,?,?,?,?)";
             PreparedStatement sentenciaP = conn.prepareStatement(insertarlosDatos);
             sentenciaP.setObject(1, dia);
             sentenciaP.setString(2, hora);
@@ -348,6 +348,7 @@ public class CRONPasarDatosSQL {
             sentenciaP.setFloat(7, Float.parseFloat(nivelPolvo));
             sentenciaP.setFloat(8, Float.parseFloat(mmlluvia));
             sentenciaP.setFloat(9, Float.parseFloat(kmhViento));
+            sentenciaP.setFloat(10, Float.parseFloat(lumens));
 
             sentenciaP.execute();
 
