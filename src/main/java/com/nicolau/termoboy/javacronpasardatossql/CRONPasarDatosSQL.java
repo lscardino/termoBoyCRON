@@ -61,7 +61,7 @@ public class CRONPasarDatosSQL {
         leerBDD();
 
         System.out.println("   BORRAR DATOS");
-        CRONBorrarUltimaSemana borrarUltimaSemana = new CRONBorrarUltimaSemana(CANTIDAD_LINEA);
+        //CRONBorrarUltimaSemana borrarUltimaSemana = new CRONBorrarUltimaSemana(CANTIDAD_LINEA);
         System.out.println("Calse ejecutada con Exito.");
     }
 
@@ -73,18 +73,35 @@ public class CRONPasarDatosSQL {
 
         latch = new CountDownLatch(1);
 
+        System.out.println("INFO - (+) Nuevo (*) Anónimo (.) Existente");
         System.out.print("Usuario - ");
         database.getReference("Usuario").addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot ds) {
                 for (DataSnapshot usuariosDatos : ds.getChildren()) {
                     String idUsuario = usuariosDatos.getKey().toString();
-                    
-                    System.out.print(".");
+
                     if (miraSiUsuarioRepetido(idUsuario)) {
                         //System.out.print( idUsuario + " |");
-                        guardarSQL_Usuario(idUsuario, Integer.parseInt(usuariosDatos.child("Edad").getValue().toString()), usuariosDatos.child("Sexo").getValue().toString());
+                        int edad = -1;
+                        String sexo = null;
+                        try {
+                            edad = Integer.parseInt(usuariosDatos.child("Edad").getValue().toString());
+                            sexo = usuariosDatos.child("Sexo").getValue().toString();
+                            System.out.print("+");
+                        } catch (NumberFormatException ex) {
+                        } catch (NullPointerException exp) {
+                            System.out.print("*");
+                        }
+                        guardarSQL_Usuario(idUsuario, edad, sexo);
+                    } else {
+                        System.out.print(".");
                     }
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(CRONPasarDatosSQL.class.getName()).log(Level.SEVERE, null, ex);
                 }
                 latch.countDown();
             }
@@ -137,18 +154,19 @@ public class CRONPasarDatosSQL {
                             System.out.print("    INFO Hora EntradaS -> ");
                             for (DataSnapshot horas : entrada.child("Hora").getChildren()) {
                                 String horaEntrada = horas.getKey();
-                                
+
                                 System.out.print(".");
                                 if (!mirarSiHoraRepetida(diaEntrada, horaEntrada)) {
                                     //System.out.print(horaEntrada + "| ");
-                                    String humedadEntrada = horas.child("Humedad").getValue().toString();
-                                    String temperaturaEntrada = horas.child("Temperatura").getValue().toString();
-                                    String lluviaEntrada = horas.child("Lluvia").getValue().toString();
-                                    String polvoEntrada = horas.child("Polvo").getValue().toString();
-                                    String presionEntrada = horas.child("Presión").getValue().toString();
-                                    String velVientoEntrada = horas.child("Velocidad viento").getValue().toString();
-                                    String sensacionTEntrada = horas.child("Sensacion").getValue().toString();
-                                    String lumensEntrada = horas.child("Lumens").getValue().toString();
+                                    
+                                    String humedadEntrada = getChilCatch(horas, "Humedad");
+                                    String temperaturaEntrada = getChilCatch(horas, "Temperatura");
+                                    String lluviaEntrada = getChilCatch(horas, "Lluvia");
+                                    String polvoEntrada = getChilCatch(horas, "Polvo");
+                                    String presionEntrada = getChilCatch(horas, "Presión");
+                                    String velVientoEntrada = getChilCatch(horas, "Velocidad viento");
+                                    String sensacionTEntrada = getChilCatch(horas, "Sensacion");
+                                    String lumensEntrada = getChilCatch(horas, "Lumens");
                                     guardarSQL_Hora(diaEntrada, horaEntrada, humedadEntrada, temperaturaEntrada, presionEntrada, lluviaEntrada,
                                             velVientoEntrada, polvoEntrada, sensacionTEntrada, lumensEntrada);
                                 }
@@ -165,7 +183,7 @@ public class CRONPasarDatosSQL {
                                 for (DataSnapshot infoUser : transportes.getChildren()) {
                                     //System.out.print(transporte + "," + usuario + "| ");
                                     System.out.print(".");
-                                    
+
                                     String usuario = infoUser.getKey();
                                     guardarSQL_Usar(usuario, transporte, diaEntrada);
                                 }
@@ -176,7 +194,15 @@ public class CRONPasarDatosSQL {
                         System.out.println("INFO Terminado");
                         latch.countDown();
                     }
-
+                   
+                    private String getChilCatch(DataSnapshot horas, String var){
+                        try{
+                            return horas.child(var).getValue().toString();
+                        }catch (NullPointerException ex){
+                            return "-100";
+                        }
+                    }
+                    
                     @Override
                     public void onCancelled(DatabaseError de) {
                         System.out.println("ERROR: No hay datos que concuerden con la busqueda especificada.");
