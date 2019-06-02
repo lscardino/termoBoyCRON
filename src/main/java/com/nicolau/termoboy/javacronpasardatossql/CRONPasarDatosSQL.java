@@ -61,7 +61,7 @@ public class CRONPasarDatosSQL {
         leerBDD();
 
         System.out.println("   BORRAR DATOS");
-        //CRONBorrarUltimaSemana borrarUltimaSemana = new CRONBorrarUltimaSemana(CANTIDAD_LINEA);
+        CRONBorrarUltimaSemana borrarUltimaSemana = new CRONBorrarUltimaSemana(CANTIDAD_LINEA);
         System.out.println("Calse ejecutada con Exito.");
     }
 
@@ -244,14 +244,14 @@ public class CRONPasarDatosSQL {
      */
     private void miraSiFechaRepetida(String fecha) {
         try {
-            String queryFecha = "select count(*) from dia d where d.fk_dia=(?)";
+            String queryFecha = "select count(*) from Dia d where d.fk_dia=(?)";
             PreparedStatement sentenciaP = conn.prepareStatement(queryFecha);
             sentenciaP.setObject(1, fecha);
             try (ResultSet rs = sentenciaP.executeQuery()) {
                 if (rs.next()) {
                     int resultado = rs.getInt(1);
                     if (resultado == 0) {
-                        String insertarFecha = "INSERT INTO dia VALUES(?)";
+                        String insertarFecha = "INSERT INTO Dia VALUES(?)";
                         sentenciaP = conn.prepareStatement(insertarFecha);
                         sentenciaP.setObject(1, fecha);
                         sentenciaP.execute();
@@ -332,7 +332,7 @@ public class CRONPasarDatosSQL {
 
     private void guardarSQL_Usuario(String idUsuario, int edad, String genero) {
         try {
-            String insertarFecha = "INSERT INTO usuario VALUES(?,?,?)";
+            String insertarFecha = "INSERT INTO Usuario VALUES(?,?,?)";
             PreparedStatement sentenciaP = conn.prepareStatement(insertarFecha);
             sentenciaP.setObject(1, idUsuario);
             sentenciaP.setObject(2, edad);
@@ -414,7 +414,8 @@ public class CRONPasarDatosSQL {
 
     private void inicilizaVariables() throws SQLException {
         database = FirebaseDatabase.getInstance();
-        conn = Connexion.getConnection();
+        Connexion connexion = new Connexion();
+        conn = connexion.getConnection();
 
         parser = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
 

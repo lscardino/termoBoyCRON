@@ -8,6 +8,7 @@ package com.nicolau.termoboy.javacronpasardatossql.modelo;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -21,15 +22,15 @@ import java.util.logging.Logger;
  */
 public class Connexion {
 
-    private static final String DRIVER_CLASS_NAME;
-    private static final String DRIVER_URL;
-    private static final String USER;
-    private static final String PASSWORD;
+    private String DRIVER_CLASS_NAME;
+    private String DRIVER_URL;
+    private String USER;
+    private String PASSWORD;
 
-    static {
+    public Connexion() {
         Properties propiedades = new Properties();
         try {
-            FileInputStream fis = new FileInputStream("config.properties");
+            InputStream fis = getClass().getResourceAsStream("/config.properties");
             propiedades.load(fis);
         } catch (FileNotFoundException ex) {
             Logger.getLogger(Connexion.class.getName()).log(Level.SEVERE, null, ex);
@@ -43,11 +44,11 @@ public class Connexion {
         PASSWORD = propiedades.getProperty("passwd");
     }
 
-    public static Connection getConnection() throws SQLException {
+    public Connection getConnection() throws SQLException {
         return DriverManager.getConnection(DRIVER_URL, USER, PASSWORD);
     }
 
-    public static Connection getConnectionAdmin() throws SQLException {
+    public Connection getConnectionAdmin() throws SQLException {
         return DriverManager.getConnection(DRIVER_URL, USER, PASSWORD);
     }
 }
