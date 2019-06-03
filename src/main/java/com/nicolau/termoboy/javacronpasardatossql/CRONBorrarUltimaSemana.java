@@ -71,36 +71,37 @@ public class CRONBorrarUltimaSemana {
 
                 if (cantidadDatos > CANTIDAD_LINEA) {
                     query = ref.orderByKey().limitToFirst(cantidadDatos - CANTIDAD_LINEA);
+                    query.addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(DataSnapshot ds) {
+                            System.out.print("    INFO Día Borrar ");
+                            for (DataSnapshot entrada : ds.getChildren()) {
+                                String diaEntrada = entrada.getKey();
+                                System.out.print(diaEntrada + " | ");
+                                removeQuery(entrada);
+                            }
+                            System.out.println("");
+
+                            latch.countDown();
+                        }
+
+                        private void removeQuery(DataSnapshot _entrada) {
+                            _entrada.getRef().removeValue(new DatabaseReference.CompletionListener() {
+                                @Override
+                                public void onComplete(DatabaseError de, DatabaseReference dr) {
+                                }
+                            });
+                        }
+
+                        @Override
+                        public void onCancelled(DatabaseError de) {
+                            latch.countDown();
+                        }
+                    });
                 } else {
                     System.out.println("ERROR: No hay datos que concuerden con la busqueda especificada.");
+                    latch.countDown();
                 }
-                query.addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(DataSnapshot ds) {
-                        System.out.print("    INFO Día Borrar ");
-                        for (DataSnapshot entrada : ds.getChildren()) {
-                            String diaEntrada = entrada.getKey();
-                            System.out.print(diaEntrada + " | ");
-                            removeQuery(entrada);
-                        }
-                        System.out.println("");
-
-                        latch.countDown();
-                    }
-
-                    private void removeQuery(DataSnapshot _entrada) {
-                        _entrada.getRef().removeValue(new DatabaseReference.CompletionListener() {
-                            @Override
-                            public void onComplete(DatabaseError de, DatabaseReference dr) {
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onCancelled(DatabaseError de) {
-                        latch.countDown();
-                    }
-                });
 
             }
 
@@ -120,32 +121,37 @@ public class CRONBorrarUltimaSemana {
             public void onDataChange(DataSnapshot ds) {
                 long countUsuarios = ds.getChildrenCount();
                 int overflowUser = (int) (countUsuarios - LIMIT_USER);
-                Query cienUsuarios = ds.getRef().limitToFirst((overflowUser > 0) ? overflowUser : 0);
+                
 
-                cienUsuarios.addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(DataSnapshot ds) {
-                        System.out.println("INFO - Limite de usuario superado");
-                        System.out.println("    ACCION - Subirá los datos("+LIMIT_USER+")");
-                        for (DataSnapshot overUser : ds.getChildren()) {
-                            removeQuery(overUser);
-                        }
-                        latch.countDown();
-                    }
-
-                    private void removeQuery(DataSnapshot _overUser) {
-                        _overUser.getRef().removeValue(new DatabaseReference.CompletionListener() {
-                            @Override
-                            public void onComplete(DatabaseError de, DatabaseReference dr) {
+                if (overflowUser > 0) {
+                    Query cienUsuarios = ds.getRef().limitToFirst(overflowUser);
+                    cienUsuarios.addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(DataSnapshot ds) {
+                            System.out.println("INFO - Limite de usuario superado");
+                            System.out.println("    ACCION - Subirá los datos(" + LIMIT_USER + ")");
+                            for (DataSnapshot overUser : ds.getChildren()) {
+                                removeQuery(overUser);
                             }
-                        });
-                    }
+                            latch.countDown();
+                        }
 
-                    @Override
-                    public void onCancelled(DatabaseError de) {
-                        latch.countDown();
-                    }
-                });
+                        private void removeQuery(DataSnapshot _overUser) {
+                            _overUser.getRef().removeValue(new DatabaseReference.CompletionListener() {
+                                @Override
+                                public void onComplete(DatabaseError de, DatabaseReference dr) {
+                                }
+                            });
+                        }
+
+                        @Override
+                        public void onCancelled(DatabaseError de) {
+                            latch.countDown();
+                        }
+                    });
+                } else {
+                    latch.countDown();
+                }
             }
 
             @Override
